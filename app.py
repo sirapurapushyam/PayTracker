@@ -340,7 +340,6 @@ if rec:
 else:
     st.info("No recurring payments detected.")
 
-# ---------- Download ----------
 st.subheader("Download Report")
 st.caption("Export summary and insights for offline reference")
 
