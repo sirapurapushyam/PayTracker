@@ -1,22 +1,20 @@
-import matplotlib.pyplot as plt
-import io, base64
+import streamlit as st
 
-def monthly_trend(df):
-    if df.empty:
-        return None
+def render_monthly_trends(df):
+    st.markdown("### Monthly transaction trends")
 
-    df = df.copy()
-    df["month"] = df["datetime"].dt.to_period("M").astype(str)
-    data = df.groupby(["month", "type"])["amount"].sum().unstack().fillna(0)
+    trend_df = df.copy()
+    trend_df["month"] = trend_df["datetime"].dt.to_period("M").astype(str)
 
-    fig, ax = plt.subplots(figsize=(10, 4))
-    data.plot(kind="bar", ax=ax)
-    ax.set_title("Monthly Transaction Trend")
-    ax.set_ylabel("Amount (₹)")
-    ax.set_xlabel("Month")
+    trend = (
+        trend_df
+        .groupby(["month", "type"])["amount"]
+        .sum()
+        .unstack()
+        .fillna(0)
+    )
 
-    buf = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
-    plt.close()
-    return base64.b64encode(buf.getvalue()).decode()
+    if not trend.empty:
+        st.bar_chart(trend)
+    else:
+        st.info("No data available for monthly trends.")

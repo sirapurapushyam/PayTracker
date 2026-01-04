@@ -1,34 +1,20 @@
-import matplotlib.pyplot as plt
-import io, base64
+import streamlit as st
 
-def hourly_chart(pattern_df):
-    if pattern_df is None or pattern_df.empty:
-        return None
+def render_spending_patterns(hourly_df, weekday_df):
+    st.markdown("### Spending patterns")
 
-    fig, ax = plt.subplots()
-    ax.bar(pattern_df["hour"], pattern_df["amount"])
-    ax.set_title("Hourly Spending Pattern")
-    ax.set_xlabel("Hour")
-    ax.set_ylabel("Amount (₹)")
+    c1, c2 = st.columns(2)
 
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    plt.close()
-    return base64.b64encode(buf.getvalue()).decode()
+    with c1:
+        st.markdown("#### Hour-wise spending")
+        if not hourly_df.empty:
+            st.bar_chart(hourly_df.set_index("hour")["amount"])
+        else:
+            st.info("No hourly data.")
 
-
-def weekday_chart(pattern_df):
-    if pattern_df is None or pattern_df.empty:
-        return None
-
-    fig, ax = plt.subplots()
-    ax.bar(pattern_df["day"], pattern_df["amount"])
-    ax.set_title("Weekday Spending Pattern")
-    ax.set_ylabel("Amount (₹)")
-    ax.tick_params(axis='x', rotation=45)
-
-    buf = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
-    plt.close()
-    return base64.b64encode(buf.getvalue()).decode()
+    with c2:
+        st.markdown("#### Day-wise spending")
+        if not weekday_df.empty:
+            st.bar_chart(weekday_df.set_index("day")["amount"])
+        else:
+            st.info("No weekday data.")

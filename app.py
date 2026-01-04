@@ -4,6 +4,10 @@ warnings.filterwarnings("ignore")
 
 # ---------- Imports ----------
 from pdf_reader.phonepe_pdf import extract_transactions
+from charts.trends import render_monthly_trends
+from charts.spending import render_category_spending, render_daily_spending
+from charts.patterns import render_spending_patterns
+
 from analytics.summary import cash_flow
 from analytics.categories import add_category
 from analytics.insights import generate_key_insights
@@ -111,7 +115,7 @@ Your data is processed locally and never stored.
 
 # ---------- Load Data ----------
 try:
-    df = extract_transactions(pdf)
+    df,metadata = extract_transactions(pdf)
 
     # Basic structural validation
     required_cols = {"datetime", "amount", "type", "counterparty"}
@@ -130,14 +134,41 @@ except Exception:
         "Please upload the correct PhonePe PDF downloaded from the PhonePe app."
     )
     st.stop()
+# ---------- Statement Info (Header Metadata) ----------
+phone = metadata.get("phone_number")
+statement_start = metadata.get("statement_start")
+statement_end = metadata.get("statement_end")
+
+if phone:
+    st.markdown(
+        f"<p style='text-align:center; color:#6b7280;'>"
+        f"📄 Transaction statement for <b>{phone}</b>"
+        f"</p>",
+        unsafe_allow_html=True
+    )
+
+if statement_start and statement_end:
+    st.markdown(
+        f"<p style='text-align:center; color:#6b7280;'>"
+        f"Period: {statement_start.strftime('%d %b %Y')} "
+        f"→ {statement_end.strftime('%d %b %Y')}"
+        f"</p>",
+        unsafe_allow_html=True
+    )
+
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # ---------- Sidebar : Filters ----------
 with st.sidebar:
     st.header("Filters")
     st.caption("Refine transactions by date, amount, or contact")
 
-    min_date = df["datetime"].min().date()
-    max_date = df["datetime"].max().date()
+    statement_start = metadata.get("statement_start")
+    statement_end = metadata.get("statement_end")
+
+    min_date = statement_start or df["datetime"].min().date()
+    max_date = statement_end or df["datetime"].max().date()
+
 
     start_date = st.date_input("Start date", min_date, min_value=min_date, max_value=max_date)
     end_date = st.date_input("End date", max_date, min_value=min_date, max_value=max_date)
@@ -162,8 +193,10 @@ df_f = apply_filters(
     txn_type,
     person
 )
-summary_start = df_f["datetime"].min().date()
-summary_end = df_f["datetime"].max().date()
+statement_start = metadata.get("statement_start")
+statement_end = metadata.get("statement_end")
+summary_start = statement_start or df_f["datetime"].min().date()
+summary_end = statement_end or df_f["datetime"].max().date()
 
 if df_f.empty:
     st.warning("No transactions found for the selected filters.")
@@ -288,43 +321,70 @@ with c2:
     top_contacts(df_f, "received"),
     width="stretch"
 )
-
-
 # ---------- Charts ----------
 st.subheader("Visual Analysis")
 
-st.markdown("### Monthly transaction trends")
-trend_df = df_f.copy()
-trend_df["month"] = trend_df["datetime"].dt.to_period("M").astype(str)
-trend = trend_df.groupby(["month", "type"])["amount"].sum().unstack().fillna(0)
-st.bar_chart(trend)
+render_monthly_trends(df_f)
 
-st.markdown("### Spending by category")
-cat_df = df_f[df_f["type"] == "DEBIT"]
-if not cat_df.empty:
-    st.bar_chart(cat_df.groupby("category")["amount"].sum())
+render_category_spending(df_f)
 
-st.markdown("### Daily spending")
-daily = daily_money_spent(df_f)
-if not daily.empty:
-    st.line_chart(daily.set_index("date")["amount"])
+render_daily_spending(
+    df_f,
+    start_date=statement_start,
+    end_date=statement_end,
+    daily_fn=daily_money_spent
+)
 
-# ---------- Activity Patterns ----------
-st.markdown("### Spending patterns")
+render_spending_patterns(
+    hourly_spending_pattern(df_f),
+    weekday_spending_pattern(df_f)
+)
 
-c1, c2 = st.columns(2)
 
-with c1:
-    st.markdown("#### Hour-wise spending")
-    hourly = hourly_spending_pattern(df_f)
-    if not hourly.empty:
-        st.bar_chart(hourly.set_index("hour")["amount"])
+# # ---------- Charts ----------
+# st.subheader("Visual Analysis")
 
-with c2:
-    st.markdown("#### Day-wise spending")
-    weekday = weekday_spending_pattern(df_f)
-    if not weekday.empty:
-        st.bar_chart(weekday.set_index("day")["amount"])
+# st.markdown("### Monthly transaction trends")
+# trend_df = df_f.copy()
+# trend_df["month"] = trend_df["datetime"].dt.to_period("M").astype(str)
+# trend = trend_df.groupby(["month", "type"])["amount"].sum().unstack().fillna(0)
+# st.bar_chart(trend)
+
+# st.markdown("### Spending by category")
+# cat_df = df_f[df_f["type"] == "DEBIT"]
+# if not cat_df.empty:
+#     st.bar_chart(cat_df.groupby("category")["amount"].sum())
+
+# st.markdown("### Daily spending")
+# # daily = daily_money_spent(df_f)
+# # if not daily.empty:
+# #     st.line_chart(daily.set_index("date")["amount"])
+# daily = daily_money_spent(
+#     df_f,
+#     start_date=statement_start,
+#     end_date=statement_end
+# )
+
+# if not daily.empty:
+#     st.line_chart(daily.set_index("date")["amount"])
+
+
+# # ---------- Activity Patterns ----------
+# st.markdown("### Spending patterns")
+
+# c1, c2 = st.columns(2)
+
+# with c1:
+#     st.markdown("#### Hour-wise spending")
+#     hourly = hourly_spending_pattern(df_f)
+#     if not hourly.empty:
+#         st.bar_chart(hourly.set_index("hour")["amount"])
+
+# with c2:
+#     st.markdown("#### Day-wise spending")
+#     weekday = weekday_spending_pattern(df_f)
+#     if not weekday.empty:
+#         st.bar_chart(weekday.set_index("day")["amount"])
 
 # ---------- Recurring Payments ----------
 st.subheader("Recurring Payments")
@@ -340,6 +400,7 @@ if rec:
 else:
     st.info("No recurring payments detected.")
 
+# ---------- Download ----------
 st.subheader("Download Report")
 st.caption("Export summary and insights for offline reference")
 
