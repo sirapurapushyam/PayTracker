@@ -142,7 +142,7 @@ statement_end = metadata.get("statement_end")
 if phone:
     st.markdown(
         f"<p style='text-align:center; color:#6b7280;'>"
-        f"📄 Transaction statement for <b>{phone}</b>"
+        f"Transaction statement for <b>{phone}</b>"
         f"</p>",
         unsafe_allow_html=True
     )
