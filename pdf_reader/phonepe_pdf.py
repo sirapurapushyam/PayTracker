@@ -41,7 +41,7 @@ def extract_transactions(pdf_file):
     for page in reader.pages:
         # print(page)
         text = page.extract_text()
-        print(text)
+        # print(text)
         if not text:
             continue
 
@@ -114,12 +114,12 @@ def extract_transactions(pdf_file):
 
 
     df = pd.DataFrame(rows)
-    df.to_csv("my_file.csv", index=False)
-    print(df)
+    # df.to_csv("my_file.csv", index=False)
+    # print(df)
     df["datetime"] = pd.to_datetime(
         df["date"] + " " + df["time"],
         format="%b %d, %Y %I:%M %p",
         errors="coerce"
     )
-    df.to_csv("date.csv", index=False)
+    # df.to_csv("date.csv", index=False)
     return df,metadata
