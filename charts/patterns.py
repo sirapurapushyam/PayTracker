@@ -1,4 +1,6 @@
 import streamlit as st
+# import pandas as pd
+# import altair as alt
 
 def render_spending_patterns(hourly_df, weekday_df):
     st.markdown("### Spending patterns")
@@ -8,6 +10,12 @@ def render_spending_patterns(hourly_df, weekday_df):
     with c1:
         st.markdown("#### Hour-wise spending")
         if not hourly_df.empty:
+            hourly_df = (
+            hourly_df
+            .set_index("hour")
+            .reindex(range(24), fill_value=0)
+            .reset_index()
+        )
             st.bar_chart(hourly_df.set_index("hour")["amount"])
         else:
             st.info("No hourly data.")

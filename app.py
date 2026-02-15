@@ -1,28 +1,24 @@
 import streamlit as st
 import warnings
 warnings.filterwarnings("ignore")
-
-# ---------- Imports ----------
 from pdf_reader.phonepe_pdf import extract_transactions
 from charts.trends import render_monthly_trends
 from charts.spending import render_category_spending, render_daily_spending
 from charts.patterns import render_spending_patterns
 
-from analytics.summary import cash_flow
+from analytics.summary import summary
 from analytics.categories import add_category
-from analytics.insights import generate_key_insights
-from analytics.velocity import daily_money_spent
+from analytics.insights import insight
+from analytics.daily_money_spent import daily_money_spent
 from analytics.patterns import hourly_spending_pattern, weekday_spending_pattern
 from analytics.recurring import recurring_payments
-from analytics.contacts import top_contacts
+from analytics.top_contacts import top_contacts
 
 from utils.filters import apply_filters
-from utils.exports import export_summary_and_insights
+from utils.exports import exports
 
-# ---------- Page Config ----------
 st.set_page_config(page_title="PayTracker", layout="wide")
 
-# ---------- Global Styling ----------
 st.markdown("""
 <style>
 .block-container {
@@ -60,7 +56,6 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Header ----------
 st.markdown(
     "<h1 style='text-align: center;'>PayTracker</h1>",
     unsafe_allow_html=True
@@ -71,7 +66,6 @@ st.markdown(
 )
 st.caption("")
 
-# ---------- Sidebar : Upload ----------
 with st.sidebar:
     st.header("Upload Statement")
     st.caption("Upload your PhonePe transaction PDF")
@@ -81,7 +75,6 @@ with st.sidebar:
 
     pdf = st.file_uploader("PhonePe PDF", type="pdf")
 
-# ---------- No File ----------
 if not pdf:
     st.info("Upload your PhonePe transaction PDF using the sidebar to get started.")
 
@@ -113,11 +106,9 @@ Your data is processed locally and never stored.
     """)
     st.stop()
 
-# ---------- Load Data ----------
 try:
     df,metadata = extract_transactions(pdf)
 
-    # Basic structural validation
     required_cols = {"datetime", "amount", "type", "counterparty"}
     if df is None or df.empty or not required_cols.issubset(df.columns):
         raise ValueError("Invalid PhonePe statement structure")
@@ -134,7 +125,6 @@ except Exception:
         "Please upload the correct PhonePe PDF downloaded from the PhonePe app."
     )
     st.stop()
-# ---------- Statement Info (Header Metadata) ----------
 phone = metadata.get("phone_number")
 statement_start = metadata.get("statement_start")
 statement_end = metadata.get("statement_end")
@@ -158,7 +148,6 @@ if statement_start and statement_end:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# ---------- Sidebar : Filters ----------
 with st.sidebar:
     st.header("Filters")
     st.caption("Refine transactions by date, amount, or contact")
@@ -183,7 +172,6 @@ with st.sidebar:
     person = st.selectbox("Contact", people)
     person = None if person == "All" else person
 
-# ---------- Apply Filters ----------
 df_f = apply_filters(
     df,
     start_date,
@@ -202,8 +190,7 @@ if df_f.empty:
     st.warning("No transactions found for the selected filters.")
     st.stop()
 
-# ---------- Summary ----------
-flow = cash_flow(df_f)
+flow = summary(df_f)
 st.subheader("Summary")
 st.caption(
     f"Based on transactions from {summary_start.strftime('%d %b %Y')} to {summary_end.strftime('%d %b %Y')}"
@@ -244,13 +231,12 @@ with c4:
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- Key Insights ----------
 st.subheader("Key Insights")
 st.caption(
     f"Based on transactions from {summary_start.strftime('%d %b %Y')} to {summary_end.strftime('%d %b %Y')}"
 )
 
-ins = generate_key_insights(df_f)
+ins = insight(df_f)
 
 if ins:
     col1, col2, col3 = st.columns(3)
@@ -306,7 +292,6 @@ if ins:
 else:
     st.info("Not enough data to generate insights.")
 
-# ---------- Top Contacts ----------
 st.subheader("Top Contacts")
 
 c1, c2 = st.columns(2)
@@ -321,11 +306,11 @@ with c2:
     top_contacts(df_f, "received"),
     width="stretch"
 )
-# ---------- Charts ----------
+
 st.subheader("Visual Analysis")
-
+# Monthly Trends Chart
 render_monthly_trends(df_f)
-
+# Category Trends Chart
 render_category_spending(df_f)
 
 render_daily_spending(
@@ -387,26 +372,25 @@ render_spending_patterns(
 #         st.bar_chart(weekday.set_index("day")["amount"])
 
 # ---------- Recurring Payments ----------
-st.subheader("Recurring Payments")
-st.caption("Transactions that appear to repeat regularly")
+# st.subheader("Recurring Payments")
+# st.caption("Transactions that appear to repeat regularly")
 
-rec = recurring_payments(df_f)
-if rec:
-    st.dataframe(
-    rec,
-    width="stretch"
-)
+# rec = recurring_payments(df_f)
+# if rec:
+#     st.dataframe(
+#     rec,
+#     width="stretch"
+# )
 
-else:
-    st.info("No recurring payments detected.")
+# else:
+#     st.info("No recurring payments detected.")
 
-# ---------- Download ----------
 st.subheader("Download Report")
 st.caption("Export summary and insights for offline reference")
 
 st.download_button(
     "Download summary (JSON)",
-    export_summary_and_insights(flow, ins,summary_start=str(summary_start),
+    exports(flow, ins,summary_start=str(summary_start),
         summary_end=str(summary_end)),
     f"paytracker_summary_insights_from{str(summary_start)}to{str(summary_end)}.json"
 )

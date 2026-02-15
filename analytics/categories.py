@@ -1,10 +1,11 @@
 def add_category(df):
     rules = {
-        "Food": ["zomato", "swiggy", "restaurant"],
-        "Shopping": ["amazon", "flipkart"],
-        "Bills": ["recharge", "electricity", "bill"],
-        "Transport": ["uber", "ola"],
-    }
+    "Travel": ["irctc", "rail", "bus", "flight","uber", "ola","UTS","ticket"],
+    "Food": ["zomato", "swiggy", "restaurant","Tiffin","canteen"],
+    "Shopping": ["amazon", "flipkart"], 
+    "Bills": ["recharge", "electricity", "bill"],
+    "Medical":["Medicals","medical","hospital"]
+}
 
     def detect(name):
         if not isinstance(name, str):

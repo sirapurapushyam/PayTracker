@@ -6,7 +6,7 @@ def to_python_type(value):
         return value.item()
     return value
 
-def export_summary_and_insights(summary, insights, summary_start, summary_end):
+def exports(summary, insights, summary_start, summary_end):
     clean_summary = {k: to_python_type(v) for k, v in summary.items()}
     clean_insights = {k: to_python_type(v) for k, v in insights.items()}
     

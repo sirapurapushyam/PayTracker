@@ -3,18 +3,13 @@ import PyPDF2
 import re
 
 def extract_statement_metadata(reader):
-    """
-    Extract phone number and statement date range from page 1
-    """
     first_page_text = reader.pages[0].extract_text()
     if not first_page_text:
         return {}
 
-    # Phone number
     phone_re = r"Transaction Statement for\s+(\d+)"
     phone_match = re.search(phone_re, first_page_text)
 
-    # Date range
     range_re = r"([0-9]{2} [A-Z][a-z]{2}, [0-9]{4})\s*-\s*([0-9]{2} [A-Z][a-z]{2}, [0-9]{4})"
     range_match = re.search(range_re, first_page_text)
 
@@ -44,7 +39,9 @@ def extract_transactions(pdf_file):
     amt_re = r'₹([\d,]+(?:\.\d{2})?)'
 
     for page in reader.pages:
+        # print(page)
         text = page.extract_text()
+        print(text)
         if not text:
             continue
 
@@ -65,16 +62,39 @@ def extract_transactions(pdf_file):
                 amt_match = re.search(amt_re, lines[i+3])
                 amount = float(amt_match.group(1).replace(",", "")) if amt_match else 0
 
-                party_line = lines[i+4]
-                if "Paid to" in party_line:
-                    counterparty = party_line.replace("Paid to", "").strip()
+                # ---- Counterparty Extraction ----
+                party_line = lines[i+4].strip()
+
+                counterparty = "Unknown"
+                direction = "unknown"
+
+                if party_line in ["Paid to", "Payment to", "Transfer to"]:
+                    name_parts = []
+                    j = i + 5
+                    while j < len(lines) and "Transaction ID" not in lines[j] and "UTR No" not in lines[j]:
+                        name_parts.append(lines[j].strip())
+                        j += 1
+
+                    counterparty = " ".join(name_parts)
                     direction = "paid"
-                elif "Received from" in party_line:
-                    counterparty = party_line.replace("Received from", "").strip()
+                elif party_line in ["Received from", "Refund from"]:
+                    name_parts = []
+                    j = i + 5
+
+                    while j < len(lines) and "Transaction ID" not in lines[j] and "UTR No" not in lines[j]:
+                        name_parts.append(lines[j].strip())
+                        j += 1
+
+                    counterparty = " ".join(name_parts)
                     direction = "received"
-                else:
-                    counterparty = "Unknown"
-                    direction = "unknown"
+
+                elif party_line.startswith(("Paid to", "Payment to", "Transfer to")):
+                    counterparty = party_line.split("to", 1)[1].strip()
+                    direction = "paid"
+
+                elif party_line.startswith(("Received from", "Refund from")):
+                    counterparty = party_line.split("from", 1)[1].strip()
+                    direction = "received"
 
                 rows.append({
                     "date": date,
@@ -84,15 +104,22 @@ def extract_transactions(pdf_file):
                     "counterparty": counterparty,
                     "direction": direction
                 })
+                j = i + 1
+                while j < len(lines) and not re.search(date_re, lines[j]):
+                    j += 1
+                i = j
 
-                i += 6
             except Exception:
                 i += 1
 
+
     df = pd.DataFrame(rows)
+    df.to_csv("my_file.csv", index=False)
+    print(df)
     df["datetime"] = pd.to_datetime(
         df["date"] + " " + df["time"],
         format="%b %d, %Y %I:%M %p",
         errors="coerce"
     )
+    df.to_csv("date.csv", index=False)
     return df,metadata

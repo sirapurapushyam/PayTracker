@@ -1,4 +1,4 @@
-def cash_flow(df):
+def summary(df):
     credit = df[df["type"] == "CREDIT"]["amount"].sum()
     debit = df[df["type"] == "DEBIT"]["amount"].sum()
 

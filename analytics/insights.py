@@ -1,11 +1,9 @@
-def generate_key_insights(df):
+def insight(df):
     insights = {}
 
-    # -------- SENT (DEBIT) --------
     sent_df = df[df["type"] == "DEBIT"]
     received_df = df[df["type"] == "CREDIT"]
 
-    # Highest total amount sent
     if not sent_df.empty:
         sent_group = sent_df.groupby("counterparty")["amount"].agg(["sum", "count"])
         insights["highest_total_sent"] = sent_group["sum"].idxmax()
@@ -18,7 +16,6 @@ def generate_key_insights(df):
         insights["highest_single_sent_amount"] = max_sent_row["amount"]
         insights["highest_single_sent_person"] = max_sent_row["counterparty"]
 
-    # -------- RECEIVED (CREDIT) --------
     if not received_df.empty:
         recv_group = received_df.groupby("counterparty")["amount"].agg(["sum", "count"])
         insights["highest_total_received"] = recv_group["sum"].idxmax()
